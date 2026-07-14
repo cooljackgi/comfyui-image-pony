@@ -8,8 +8,13 @@ docker run --rm --gpus all -p 8188:8188 my-comfy-workflow
 ```
 If the workflow uses gated HuggingFace or CivitAI models, pass tokens at build time:
 ```bash
-docker build --build-arg HF_TOKEN=$HF_TOKEN --build-arg CIVITAI_API_KEY=$CIVITAI_API_KEY -t my-comfy-workflow .
+docker build \
+  --build-arg HF_TOKEN=$HF_TOKEN \
+  --build-arg CIVITAI_API_TOKEN=$CIVITAI_API_TOKEN \
+  --build-arg CIVITAI_API_KEY=$CIVITAI_API_KEY \
+  -t my-comfy-workflow .
 ```
+`CIVITAI_API_TOKEN` is the preferred variable for `comfy model download`. `CIVITAI_API_KEY` is still accepted for compatibility.
 ## Deploy on Runpod
 1. Connect this repository at https://runpod.io/console/serverless
 2. Create a new endpoint, select **Deploy from GitHub**
