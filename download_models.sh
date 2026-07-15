@@ -125,6 +125,34 @@ PY
     return 0
 }
 
+download_from_civitai() {
+    local token="$1"
+    local target="$2"
+
+    python3 - "$MODEL_URL" "$token" "$target" <<'PY'
+import os
+import sys
+import requests
+
+url, token, target = sys.argv[1:4]
+part = f"{target}.part"
+headers = {"Authorization": f"Bearer {token}"}
+
+with requests.get(url, headers=headers, stream=True, allow_redirects=True, timeout=180) as r:
+    r.raise_for_status()
+    content_type = (r.headers.get("content-type") or "").lower()
+    if "text/html" in content_type:
+        raise RuntimeError("Civitai returned HTML instead of a model file (auth/permission issue).")
+
+    with open(part, "wb") as f:
+        for chunk in r.iter_content(chunk_size=1024 * 1024):
+            if chunk:
+                f.write(chunk)
+
+os.replace(part, target)
+PY
+}
+
 mkdir -p "$MODEL_DIR" "$RUNTIME_MODEL_DIR"
 
 if validate_model_file "$MODEL_PATH"; then
@@ -161,17 +189,8 @@ if [ -z "$TOKEN" ]; then
     exit 1
 fi
 
-log "Downloading model from Civitai fallback..."
-CIVITAI_API_TOKEN="$TOKEN" comfy model download \
-    --url "$MODEL_URL" \
-    --relative-path models/checkpoints \
-    --filename "$MODEL_FILENAME"
-
-# comfy CLI downloads to /comfyui/models/checkpoints. Move to persistent model
-# dir if needed and then link runtime path back.
-if [ "$MODEL_PATH" != "$RUNTIME_MODEL_PATH" ] && [ -f "$RUNTIME_MODEL_PATH" ]; then
-    mv -f "$RUNTIME_MODEL_PATH" "$MODEL_PATH"
-fi
+log "Downloading model from Civitai fallback directly to ${MODEL_PATH} ..."
+download_from_civitai "$TOKEN" "$MODEL_PATH"
 
 if ! validate_model_file "$MODEL_PATH"; then
     log "ERROR: Civitai download finished but file validation failed."
